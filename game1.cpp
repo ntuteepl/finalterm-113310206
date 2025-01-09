@@ -1556,6 +1556,7 @@ int main() {
                 cout << "(Y/N)?: ";
                 if(getValidChoice()) {
                     team.addCharacter(new teacher("THE C++ PRPROGRAMING TEACHER", 100000000, 4, 3, 2, 4, 2));
+                    cout << "His skill vera strong!!" << "\n";
                 }
             }
             Monster boss(5500, 40);
