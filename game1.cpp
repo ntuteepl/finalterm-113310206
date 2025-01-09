@@ -1,10 +1,10 @@
-#include<iostream>
-#include<vector>
-#include<algorithm>
-#include<random>
-#include<ctime>
-#include<string>
-#include<cmath>
+#include <iostream>
+#include <vector>
+#include <algorithm>
+#include <random>
+#include <ctime>
+#include <string>
+#include <cmath>
 #include <iomanip>
 #include <unordered_map>
 #include <windows.h>
@@ -78,7 +78,7 @@ protected:
     int armor, maxArmor; // 護甲
     int attackPower; // 攻擊力
     int str, vit, agl, dex, intel; // 屬性值
-    int skillCost, elementSkillCost; // 技能消耗 MP
+    int skillCost = 0, elementSkillCost = 0; // 技能消耗 MP
     bool isDefending; // 是否處於防禦狀態
     Element element; // 角色元素屬性
     unordered_map<string, int> statusEffects; // 狀態效果存儲
@@ -86,11 +86,8 @@ protected:
     int expToNextLevel; // 升級所需經驗值
 
 public:
-    Character(string n, int lv, int s, int v, int ag, int d, int i) : name(n), level(lv), str(s), vit(v), agl(ag), dex(d), intel(i), exp(0), expToNextLevel(100 + lv * 5) {
-        if (s + v + ag + d + i > 15 || s > 10 || v > 10 || ag > 10 || d > 10 || i > 10) {
-            cout << "Invalid attribute points for character " << name << ".\n";
-            exit(1);
-        }
+    Character(string n, int lv, int s, int v, int ag, int d, int i, int skillC, int elementSkillC) 
+        : name(n), level(lv), str(s), vit(v), agl(ag), dex(d), intel(i), exp(0), expToNextLevel(100 + lv * 5), skillCost(skillC), elementSkillCost(elementSkillC) {
 
         hp = 20 + vit * 20;
         mp = 50 + intel * 50;
@@ -115,18 +112,18 @@ public:
         return (static_cast<double>(armor) / maxArmor) * 100.0;
     }
 
-virtual void print() {
-    cout << fixed << setprecision(1) // 設置浮點數格式
-        << name << " Lv " << level 
-        << " : " << "ATK: " << attackPower 
-        << " : " << "HP: " << hp << "/" << maxHP 
-        << " : " << "MP: " << mp << "/" << maxMP 
-        << " : " << "Armor: " << armor << "/" << maxArmor
-        << " : " << "Element: " << getElementName()
-        << " : " << "EXP: " << exp << "/" << expToNextLevel 
-        << "\n";
-    cout <<"\n";
-}
+    virtual void print() {
+        cout << fixed << setprecision(1) // 設置浮點數格式
+            << name << " Lv " << level 
+            << " : " << "ATK: " << attackPower 
+            << " : " << "HP: " << hp << "/" << maxHP 
+            << " : " << "MP: " << mp << "/" << maxMP 
+            << " : " << "Armor: " << armor << "/" << maxArmor
+            << " : " << "Element: " << getElementName()
+            << " : " << "EXP: " << exp << "/" << expToNextLevel 
+            << "\n";
+        cout <<"\n";
+    }
     
     virtual void useSkill(Monster& monster) = 0;
     virtual void useElementSkill(Character& target) = 0; // 元素技能接口
@@ -353,7 +350,7 @@ private:
 
 public:
     Warrior(string n, int lv, int s, int v, int ag, int d, int i)
-        : Character(n, lv, s, v, ag, d, i), skill("Power Strike", 10, 40), elementSkill("Flame Slash", 20, 50, FIRE) {
+        : Character(n, lv, s, v, ag, d, i, 10, 20), skill("Power Strike", 10, 40), elementSkill("Flame Slash", 20, 50, FIRE) {
         element = FIRE;
     }
 
@@ -363,10 +360,15 @@ public:
     }
 
     void useSkill(Monster& monster) override {
-        int damage = getAttack() * 1.5;
-        monster.setHP(monster.getHP() - damage);
-        cout << getName() << " used Power Strike! Dealt " << damage << " damage to the monster.\n";
-        cout <<"\n";
+        if (getMP() >= skill.getCost()) {
+            setMP(getMP() - skill.getCost());
+            int damage = getAttack() * 1.5;
+            monster.setHP(monster.getHP() - damage);
+            cout << getName() << " used Power Strike! Dealt " << damage << " damage to the monster.\n";
+            cout << "\n";
+        } else {
+            cout << "Not enough MP to use Power Strike.\n";
+        }
     }
 
     void useElementSkill(Monster& target) override {
@@ -386,7 +388,7 @@ private:
 
 public:
     Wizard(string n, int lv, int s, int v, int ag, int d, int i)
-        : Character(n, lv, s, v, ag, d, i), skill("Arcane Shield", 15, 0), elementSkill("Water Blast", 30, 60, WATER) {
+        : Character(n, lv, s, v, ag, d, i, 15, 30), skill("Arcane Shield", 15, 0), elementSkill("Water Blast", 30, 60, WATER) {
         element = WATER;
     }
 
@@ -396,9 +398,14 @@ public:
     }
 
     void useSkill(Monster& monster) override {
-        applyStatusEffect("Invincible", 1);
-        cout << getName() << " used Arcane Shield! Will ignore the next attack.\n";
-        cout << "\n";
+        if (getMP() >= skill.getCost()) {
+            setMP(getMP() - skill.getCost());
+            applyStatusEffect("Invincible", 1);
+            cout << getName() << " used Arcane Shield! Will ignore the next attack.\n";
+            cout << "\n";
+        } else {
+            cout << "Not enough MP to use Arcane Shield.\n";
+        }
     }
 
     void useElementSkill(Monster& target) override {
@@ -418,7 +425,7 @@ private:
 
 public:
     Tank(string n, int lv, int s, int v, int ag, int d, int i)
-        : Character(n, lv, s, v, ag, d, i), skill("Fortify", 5, 0), elementSkill("Wooden Guard", 10, 30, WOOD) {
+        : Character(n, lv, s, v, ag, d, i, 5, 10), skill("Fortify", 5, 0), elementSkill("Wooden Guard", 10, 30, WOOD) {
         element = WOOD;
     }
 
@@ -455,7 +462,7 @@ private:
 
 public:
     Elf(string n, int lv, int s, int v, int ag, int d, int i)
-        : Character(n, lv, s, v, ag, d, i), skill("Arrow Barrage", 15, 20), elementSkill("Nature's Wrath", 30, 60, WOOD) {
+        : Character(n, lv, s, v, ag, d, i, 15, 30), skill("Arrow Barrage", 15, 20), elementSkill("Nature's Wrath", 30, 60, WOOD) {
         element = WOOD;
     }
 
@@ -465,10 +472,15 @@ public:
     }
 
     void useSkill(Monster& monster) override {
-        int damage = getAttack() * 1.1;
-        monster.setHP(monster.getHP() - damage);
-        cout << getName() << " used Arrow Barrage! Dealt " << damage << " damage to the monster.\n";
-        cout << "\n";
+        if (getMP() >= skill.getCost()) {
+            setMP(getMP() - skill.getCost());
+            int damage = getAttack() * 1.1;
+            monster.setHP(monster.getHP() - damage);
+            cout << getName() << " used Arrow Barrage! Dealt " << damage << " damage to the monster.\n";
+            cout << "\n";
+        } else {
+            cout << "Not enough MP to use Arrow Barrage.\n";
+        }
     }
 
     void useElementSkill(Monster& target) override {
@@ -488,7 +500,7 @@ private:
 
 public:
     Healer(string n, int lv, int s, int v, int ag, int d, int i)
-        : Character(n, lv, s, v, ag, d, i), skill("Healing Light", 20, 25), elementSkill("Holy Water", 40, 50, WATER) {
+        : Character(n, lv, s, v, ag, d, i, 20, 40), skill("Healing Light", 20, 25), elementSkill("Holy Water", 40, 50, WATER) {
         element = WATER;
     }
 
@@ -498,9 +510,14 @@ public:
     }
 
     void useSkill(Monster& monster) override {
-        setHP(getHP() + 25);
-        cout << getName() << " used Healing Light! Restored 25 HP.\n";
-        cout << "\n";
+        if (getMP() >= skill.getCost()) {
+            setMP(getMP() - skill.getCost());
+            setHP(getHP() + 25);
+            cout << getName() << " used Healing Light! Restored 25 HP.\n";
+            cout << "\n";
+        } else {
+            cout << "Not enough MP to use Healing Light.\n";
+        }
     }
 
     void useElementSkill(Monster& target) override {
@@ -520,7 +537,7 @@ private:
 
 public:
     Goblin(string n, int lv, int s, int v, int ag, int d, int i)
-        : Character(n, lv, s, v, ag, d, i), skill("Sneak Attack", 10, 30), elementSkill("Poison Dart", 20, 40, WOOD) {
+        : Character(n, lv, s, v, ag, d, i, 10, 20), skill("Sneak Attack", 10, 30), elementSkill("Poison Dart", 20, 40, WOOD) {
         element = WOOD;
     }
 
@@ -558,7 +575,7 @@ private:
 
 public:
     Knight(string n, int lv, int s, int v, int ag, int d, int i)
-        : Character(n, lv, s, v, ag, d, i), skill("Shield Charge", 15, 25), elementSkill("Fire Lance", 30, 60, FIRE) {
+        : Character(n, lv, s, v, ag, d, i, 15, 30), skill("Shield Charge", 15, 25), elementSkill("Fire Lance", 30, 60, FIRE) {
         element = FIRE;
     }
 
@@ -595,7 +612,7 @@ private:
 
 public:
     YOU(string n, int lv, int s, int v, int ag, int d, int i)
-        : Character(n, lv, s, v, ag, d, i), skill("Power Strike", 10, 40), elementSkill("Flame Slash", 20, 50, NONE) {
+        : Character(n, lv, s, v, ag, d, i, 10, 20), skill("Power Strike", 10, 40), elementSkill("Flame Slash", 20, 50, NONE) {
         element = NONE;
     }
 
@@ -624,7 +641,7 @@ private:
 
 public:
     teacher(string n, int lv, int s, int v, int ag, int d, int i)
-        : Character(n, lv, s, v, ag, d, i), skill("Cheater Attack!!", 0, 0), elementSkill("Flame Slash", 20, 50, NONE) {
+        : Character(n, lv, s, v, ag, d, i, 0, 20), skill("Cheater Attack!!", 0, 0), elementSkill("Flame Slash", 20, 50, NONE) {
         element = NONE;
     }
 
@@ -853,7 +870,7 @@ public:
                         cout << member->getName() << " has fallen!\n";
                         if (member->getName() == "YOU") {
                             cout << "YOU have fallen! GAME OVER\n";
-                            return;
+                            exit(0); // 程式結束
                         }
                     }
                 }
@@ -879,10 +896,38 @@ void randomCharacter(Team& team) {
     cout << "Enter character details (name, str, vit, agl, dex, intel): " << "\n";
     cout << "The total attribute points cannot exceed 15." << "\n"; 
     cout << "And the maximum value for each attribute is 10." << "\n";
-    cin >> name >> s >> v >> ag >> d >> i;
+    while (true) {
+        // 輸入角色資訊
+        cout << "Name: ";
+        cin >> ws; // 清除輸入緩衝區中的空白符號
+        getline(cin, name);
+        
+        cout << "Attributes (str vit agl dex intel): ";
+        cin >> s >> v >> ag >> d >> i;
+
+        // 檢查輸入條件是否符合
+        if (name.empty()) {
+            cout << "Name cannot be empty. Please try again." << "\n";
+        } else if (s + v + ag + d + i > 15) {
+            cout << "Total attribute points exceed 15. Please try again." << "\n";
+        } else if (s > 10 || v > 10 || ag > 10 || d > 10 || i > 10) {
+            cout << "Each attribute must be 10 or less. Please try again." << "\n";
+        } else if (s < 0 || v < 0 || ag < 0 || d < 0 || i < 0) {
+            cout << "Attributes cannot be negative. Please try again." << "\n";
+        } else {
+            // 成功輸入
+            break;
+        }
+
+        // 如果有輸入錯誤，清除錯誤狀態並清空緩衝區
+        if (cin.fail()) {
+            cin.clear(); // 清除錯誤狀態
+            cin.ignore(numeric_limits<streamsize>::max(), '\n'); // 忽略緩衝區內容
+        }
+    }
 
     // 設置角色等級
-    int level = 5;
+    int level = 3;
 
     // 創建角色並確保屬性分配符合條件
     Character* newCharacter = nullptr;
@@ -890,7 +935,7 @@ void randomCharacter(Team& team) {
         newCharacter = new Warrior(name, level, s, v, ag, d, i);
         cout << "A warrior " << name << " has become your teammate." << "\n";
         cout << "Skills: Power Strike, Flame Slash\n";
-        cout << "Element: Fire\n";
+        cout << "Element: FIRE\n";
         cout << "Skill Points: STR: " << s << ", VIT: " << v << ", AGL: " << ag << ", DEX: " << d << ", INT: " << i << "\n";
         cout << "\n";
     } 
@@ -898,7 +943,7 @@ void randomCharacter(Team& team) {
         newCharacter = new Wizard(name, level, s, v, ag, d, i);
         cout << "A wizard " << name << " has become your teammate." << "\n";
         cout << "Skills: Fireball, Ice Shard\n";
-        cout << "Element: Arcane\n";
+        cout << "Element: WATER\n";
         cout << "Skill Points: STR: " << s << ", VIT: " << v << ", AGL: " << ag << ", DEX: " << d << ", INT: " << i << "\n";
         cout << "\n";
     }
@@ -906,7 +951,7 @@ void randomCharacter(Team& team) {
         newCharacter = new Tank(name, level, s, v, ag, d, i);
         cout << "A tank " << name << " has become your teammate." << "\n";
         cout << "Skills: Shield Bash, Fortress Stance\n";
-        cout << "Element: Earth\n";
+        cout << "Element: WOOD\n";
         cout << "Skill Points: STR: " << s << ", VIT: " << v << ", AGL: " << ag << ", DEX: " << d << ", INT: " << i << "\n";
         cout << "\n";
     } 
@@ -914,7 +959,7 @@ void randomCharacter(Team& team) {
         newCharacter = new Elf(name, level, s, v, ag, d, i);
         cout << "An elf " << name << " has become your teammate." << "\n";
         cout << "Skills: Arrow Volley, Nature's Wrath\n";
-        cout << "Element: Wind\n";
+        cout << "Element: WOOD\n";
         cout << "Skill Points: STR: " << s << ", VIT: " << v << ", AGL: " << ag << ", DEX: " << d << ", INT: " << i << "\n";
         cout << "\n";
     }
@@ -922,7 +967,7 @@ void randomCharacter(Team& team) {
         newCharacter = new Healer(name, level, s, v, ag, d, i);
         cout << "A healer " << name << " has become your teammate." << "\n";
         cout << "Skills: Healing Light, Revive\n";
-        cout << "Element: Holy\n";
+        cout << "Element: WATER\n";
         cout << "Skill Points: STR: " << s << ", VIT: " << v << ", AGL: " << ag << ", DEX: " << d << ", INT: " << i << "\n";
         cout << "\n";
     }
@@ -930,7 +975,7 @@ void randomCharacter(Team& team) {
         newCharacter = new Goblin(name, level, s, v, ag, d, i);
         cout << "A goblin " << name << " has become your teammate." << "\n";
         cout << "Skills: Sneak Attack, Poison Dagger\n";
-        cout << "Element: Dark\n";
+        cout << "Element: WOOD\n";
         cout << "Skill Points: STR: " << s << ", VIT: " << v << ", AGL: " << ag << ", DEX: " << d << ", INT: " << i << "\n";
         cout << "\n";
     }
@@ -938,7 +983,7 @@ void randomCharacter(Team& team) {
         newCharacter = new Knight(name, level, s, v, ag, d, i);
         cout << "A knight " << name << " has become your teammate." << "\n";
         cout << "Skills: Holy Blade, Shield Charge\n";
-        cout << "Element: Light\n";
+        cout << "Element: FIRE\n";
         cout << "Skill Points: STR: " << s << ", VIT: " << v << ", AGL: " << ag << ", DEX: " << d << ", INT: " << i << "\n";
         cout << "\n";
     }
@@ -1086,556 +1131,675 @@ void store(Team& team) {
 
 // 主程序
 int main() {
-    Team team; // 創建 Team 實例
-    cout << "my random game" << "\n";
-    Sleep(1000);  // 延遲 1000 毫秒（1 秒）
-    cout << "random game" << "\n";
-    Sleep(1000);  // 延遲 1000 毫秒（1 秒）
-    cout << "GAME";
-    Sleep(300);  // 延遲 1000 毫秒（1 秒）
-    for(int i = 0; i < 3; i++){
-        cout << ".";
-        Sleep(500);  // 延遲 1000 毫秒（1 秒）
-    }
-    cout << "START!!!" << "\n";
-    cout << "\n";
-    Sleep(1000);
-    cout << "choose solo or team mode" << "\n";
-    cout << "1. solo mode" << "\n";
-    cout << "2. team mode" << "\n";
-    int mode;
-    cin >> mode;
-    cout << "\n";
-    Sleep(1000);
-    cout << "You are a student from Taipei Tech, and on your way back to the dorm after school," << "\n";
-    cout << "\n";
-    Sleep(2500);
-    cout << "You were hit and killed by a truck because you didn't pay attention to the traffic lights." << "\n";
-    cout << "\n";
-    Sleep(2500);
-    cout << "The god how unfortunate your situation was, a deity decided to send you to another world." << "\n";
-    cout << "\n";
+    while (true) {
+        Team team; // 創建 Team 實例
 
-    mt19937 rng(static_cast<unsigned int>(time(0))); // Mersenne Twister 隨機數生成器
-    uniform_int_distribution<int> dist(1, 3); // 生成範圍 [1, 3] 的隨機數
-
-    int coin =0;
-    int runAway = 0;
-    int randomNumber = dist(rng);
-    if(randomNumber == 1){
-        team.addCharacter(new YOU("YOU", 1, 4, 3, 2, 4, 2));
-        cout << "Now you have been transported to an ancient world filled with monsters." <<"\n";
-        cout << "\n";
-        Sleep(2500);
-        cout << "Since you are an ordinary person. " << "\n";
-        cout << "\n";
-        Sleep(2500);
-        cout << "You have no skills, no elemental affinity." << "\n";
-        cout << "\n";
-        Sleep(2500);
-        cout << "And all your skill points start from scratch." << "\n";
-        cout << "\n";
-        Sleep(2500);
-        cout << "You must defeat the boss of this world to regain your life." << "\n";
-        cout << "\n";
-        Sleep(2500);
-        cout << "Then you met someone on the road." << "\n";
-        cout << "\n";
-        Sleep(2500);
-
-        if(mode == 1){
-            cout << "He sees you as a chill guy, so he decides to become your good friend." << "\n";
-            cout << "\n";
-            Sleep(2500);
-        }
-        else{
-        cout << "Who said they also wanted to defeat the boss." << "\n";
-        cout << "\n";
-        randomCharacter(team);
-        Sleep(2500);
-        }
-
-        cout << "After that, you became good friends with them." << "\n";
-        cout << "\n";
-        Sleep(2500);
-        cout << "And went on adventures together." << "\n";
-        cout << "\n";
-        Sleep(2500);
-        cout << "Until you encountered the boss's first subordinate." << "\n";
-        cout << "\n";
-        Sleep(2500);
-        cout << "Choose whether to fight. Y/N " << "\n";
-
-        string choice;
-        cin >> choice;
-        cout << "\n";
-        Sleep(2500);        
-        if(choice == "Y"){
-            Monster monster(500, 15);
-            cout << "Monster appeared!" << "\n";
-            cout << "\n";
-            Sleep(2500);
-            cout << "The battle begins!" << "\n";
-            cout << "\n";
-            Sleep(2500);
-            team.combat(monster);
-        }
-        else{
-            runAway++;
-        }
-
-        cout << "After that, you traveled together to a ruins." << "\n";
-        cout << "\n";
-        Sleep(2500);
-        cout << "where you met a young man who had been living ther." << "\n";
-        cout << "\n";
-        Sleep(2500);
-        cout << "And resisting the boss's subordinates for many years." << "\n";
-        cout << "\n";
-        Sleep(2500);
-        cout << "He said he would help you defeat the boss." << "\n";
-        cout << "\n";
-        Sleep(2500);
-        randomCharacter(team);
-        cout << "And so, we headed towards the castle of the second subordinate." << "\n";
-        cout << "\n";
-        Sleep(2500);
-        cout << "Until we encountered him..." << "\n";
-        cout << "\n";
-        Sleep(2500);
-        cout << "Choose whether to fight. Y/N " << "\n";
-
-        cin >> choice;
-        cout << "\n";
-        Sleep(2500);        
-        if(choice == "Y"){
-            Monster monster(1000, 30);
-            cout << "Monster appeared!" << "\n";
-            cout << "\n";
-            Sleep(2500);
-            cout << "The battle begins!" << "\n";
-            cout << "\n";
-            Sleep(2500);
-            team.combat(monster);
-        }
-        else{
-            runAway++;
-        }
-        cout <<"After leaving the castle and going through days of travel." << "\n";
-        cout << "\n";
-        Sleep(2500);
-        cout << "You accumulated many connections. " << "\n";
-        cout << "\n";
-        Sleep(2500);
-        cout << "Among them was a like-minded friend." << "\n"; 
-        cout << "\n";
-        Sleep(2500);
-
-        if(mode == 1){
-            cout << "He sees you as a chill guy, so he decides to become your good friend." << "\n";
-            cout << "\n";
-            Sleep(2500);
-        }
-        else{
-        cout << "Who said they also wanted to defeat the boss." << "\n";
-        cout << "\n";
-        randomCharacter(team);
-        Sleep(2500);
-        }
-        cout << "Who also expressed a desire to protect world peace." << "\n";
-        cout << "\n";
-        Sleep(2500);
-        cout << "And so, we headed towards the castle of the third subordinate." << "\n";
-        cout << "\n";
-        Sleep(2500);
-        cout << "Choose whether to fight. Y/N " << "\n";
-
-        cin >> choice;
-        cout << "\n";
-        Sleep(2500);        
-        if(choice == "Y"){
-            Monster monster(3000, 10);
-            cout << "Monster appeared! " << "\n";
-            cout << "\n";
-            Sleep(2500);
-            cout << "The battle begins!" << "\n";
-            cout << "\n";
-            Sleep(2500);
-            team.combat(monster);
-        }
-        else{
-            runAway++;
-        }
-
-        cout << "Later, you saw the hero trapped in a cage." << "\n";
-        cout << "\n";
-        Sleep(2500);
-        cout << "You rescued him, and in gratitude." << "\n"; 
-        cout << "\n";
-        Sleep(2500);
-        if(mode == 1){
-            cout << "He sees you as a chill guy, so he decides to become your good friend." << "\n";
-            cout << "\n";
-            Sleep(2500);
-        }
-        else{
-        cout << "Who said they also wanted to defeat the boss." << "\n";
-        cout << "\n";
-        randomCharacter(team);
-        Sleep(2500);
-        }
-        cout << "But we need to buy some support" << "\n";
-        cout << "\n";
-        Sleep(2500);
-        store(team); // 添加商店調用
-        cout << "After buying supplies." << "\n";
-        cout << "\n";
-        Sleep(2500);
-        cout << "we set off for the Demon King's castle." << "\n";
-        cout << "\n";
-        Sleep(2500);
-        cout << "and finally encountered the Demon King." << "\n";
-        cout << "\n";
-        Sleep(2500);
-        cout << "The Demon King said." << "\n";
-        cout << "\n";
-        Sleep(2500);
-        cout << "Since you were able to defeat my subordinates, come and face me!" << "\n";
-        cout << "\n";
-        Sleep(2500);
-
-        Monster monster(5000, 25);
-        cout << "Final boss appeared! " << "\n";
-        cout << "\n";
-        Sleep(2500);
-        cout << "The battle begins!" << "\n";
-        cout << "\n";
-        Sleep(2500);
-        team.combat(monster);
-        cout << "After that, you defeated the boss." << "\n";
-        cout << "\n";
-        Sleep(2500);
-        cout << "and a portal appeared before you." << "\n";
-        cout << "\n";
-        Sleep(2500);
-        cout << "You touched it, only to realize that it was all just a dream. :D" << "\n";
-    }
-
-    if(randomNumber == 2){
-        team.addCharacter(new YOU("YOU", 1, 4, 3, 2, 4, 2));
-        cout << "Now you have been transported to a neon-lit cyberpunk world filled with rogue AI and cyborgs." << "\n";
-        cout << "\n";
-        Sleep(2500);
-        cout << "You are just an average hacker with limited skills." << "\n";
-        cout << "\n";
-        Sleep(2500);
-        cout << "Your goal: stop the rogue AI threatening the city." << "\n";
-        cout << "\n";
-        Sleep(2500);
-        cout << "Along the way, you meet a skilled cyborg who offers to assist you." << "\n";
-        cout << "\n";
-
-        if(mode == 1){
-            cout << "He sees you as a chill guy, so he decides to become your good friend." << "\n";
-            cout << "\n";
-            Sleep(2500);
-        }
-        else{
-        cout << "Who said they also wanted to defeat the boss." << "\n";
-        cout << "\n";
-        randomCharacter(team);
-        Sleep(2500);
-        }
-
-        // 第一次小怪遭遇
-        cout << "While exploring the city, you encounter a low-level rogue drone." << "\n";
-        cout << "\n";
-        Sleep(2500);
-        cout << "Choose whether to engage. Y/N " << "\n";
-
-        string choice;
-        cin >> choice;
-        cout << "\n";
-        Sleep(2500);
-        if(choice == "Y"){
-            Monster drone(300, 5);
-            cout << "Rogue Drone appeared!" << "\n";
-            cout << "\n";
-            Sleep(2500);
-            cout << "The battle begins!" << "\n";
-            cout << "\n";
-            Sleep(2500);
-            team.combat(drone);
-        } else {
-            runAway++;
-        }
-
-        // 第二次小怪遭遇
-        cout << "After you defeated him, you obtained a support robot." << "\n";
-        cout << "\n";
-        Sleep(2500);
-        if(mode == 1){
-            cout << "He sees you as a chill guy, so he decides to become your good friend." << "\n";
-            cout << "\n";
-            Sleep(2500);
-        }
-        else{
-        cout << "Who said they also wanted to defeat the rogue AI." << "\n";
-        cout << "\n";
-        randomCharacter(team);
-        Sleep(2500);
-        }
-        
-        cout << "As you progress, a mid-level security bot intercepts you." << "\n";
-        cout << "\n";
-        Sleep(2500);
-
-        cout << "Choose whether to engage. Y/N " << "\n";
-        cin >> choice;
-        cout << "\n";
-        Sleep(2500);
-        if(choice == "Y"){
-            Monster securityBot(800, 15);
-            cout << "Security Bot appeared!" << "\n";
-            cout << "\n";
-            Sleep(2500);
-            cout << "The battle begins!" << "\n";
-            cout << "\n";
-            Sleep(2500);
-            team.combat(securityBot);
-        } else {
-            runAway++;
-        }
-
-        // 第三次小怪遭遇
-        cout << "Near the AI's mainframe, you encounter an elite cyborg assassin." << "\n";
-        cout << "\n";
-        Sleep(2500);
-        cout << "At this moment, you notice someone wandering nearby." << "\n";
-        cout << "\n";
-        Sleep(2500);
-        cout << "You go over to take a look and realize it s a person." << "\n";
-        cout << "\n";
-        Sleep(2500);
-        if(mode == 1){
-            cout << "He sees you as a chill guy, so he decides to become your good friend." << "\n";
-            cout << "\n";
-            Sleep(2500);
-        }
-        else{
-        cout << "Who said they also wanted to defeat the rogue AI." << "\n";
-        cout << "\n";
-        randomCharacter(team);
-        Sleep(2500);
-        }
-
-        cout << "Choose whether to engage. Y/N " << "\n";
-        cin >> choice;
-        cout << "\n";
-        Sleep(2500);
-        if(choice == "Y"){
-            Monster assassin(1500, 25);
-            cout << "Cyborg Assassin appeared!" << "\n";
-            cout << "\n";
-            Sleep(2500);
-            cout << "The battle begins!" << "\n";
-            cout << "\n";
-            Sleep(2500);
-            team.combat(assassin);
-        } else {
-            runAway++;
-        }
-
-        // 商店購買
-        cout << "After the battles, you find a black-market shop selling weapons and programs." << "\n";
-        cout << "\n";
-        Sleep(2500);
-        store(team);
-
-        // BOSS戰
-        cout << "Fully equipped, you infiltrate the AI's core system and encounter the rogue AI itself." << "\n";
-        cout << "\n";
-        Sleep(2500);
-        cout << "The AI generates a massive combat mech to stop you." << "\n";
-        cout << "\n";
-        Sleep(2500);
-
-        if(runAway == 3){
-            cout << "At this moment, the GOD couldn't stand it anymore." << "\n"; 
-            cout << "\n";
-            Sleep(2500);
-            cout << "so they decided to summon a mysterious person to help you. " << "\n";
-            cout << "\n";
-            Sleep(2500);
-
-            cout << "Choose. Y/N " << "\n";
-            cin >> choice;
-            if(choice == "Y"){
-                team.addCharacter(new teacher("THE C++ PRPROGRAMING TEACHER", 100000000, 4, 3, 2, 4, 2));
+        int mode;
+        while (true) {
+            cout << "1. solo mode" << "\n";
+            cout << "2. team mode" << "\n";
+            cout << "choose solo or team mode: ";
+            cin >> mode;
+            if (mode == 1 || mode == 2) {
+                break;
+            } else {
+                cout << "Invalid choice. Please try again." << "\n";
             }
         }
-        Monster boss(5000, 40);
-        cout << "Final Boss Mech appeared!" << "\n";
-        cout << "\n";
-        Sleep(2500);
-        cout << "The battle begins!" << "\n";
-        cout << "\n";
-        Sleep(2500);
-        team.combat(boss);
 
-        cout << "You successfully shut down the rogue AI and save the city." << "\n";
+        cout << "my random game" << "\n";
+        Sleep(1000);  // 延遲 1000 毫秒（1 秒）
+        cout << "random game" << "\n";
+        Sleep(1000);  // 延遲 1000 毫秒（1 秒）
+        cout << "GAME";
+        Sleep(300);  // 延遲 1000 毫秒（1 秒）
+        for(int i = 0; i < 3; i++){
+            cout << ".";
+            Sleep(500);  // 延遲 1000 毫秒（1 秒）
+        }
+        cout << "START!!!" << "\n";
+        cout << "\n";
+        Sleep(1000);
+        cout << "You are a student from Taipei Tech, and on your way back to the dorm after school," << "\n";
         cout << "\n";
         Sleep(2500);
-        cout << "But you wake up to realize it was a VR simulation! :D" << "\n";
-    }
+        cout << "You were hit and killed by a truck because you didn't pay attention to the traffic lights." << "\n";
+        cout << "\n";
+        Sleep(2500);
+        cout << "The GOD how unfortunate your situation was, a deity decided to send you to another world." << "\n";
+        cout << "\n";
+        Sleep(2500);
 
-    if(randomNumber == 3){
-        team.addCharacter(new YOU("YOU", 1, 4, 3, 2, 4, 2));
-        cout << "Now you have been transported to a pixelated 2D world filled with monsters and treasures." << "\n";
-        cout << "\n";
-        Sleep(2500);
-        cout << "As a simple character, your journey begins with basic tools." << "\n";            
-        cout << "\n";
-        Sleep(2500);
-        cout << "Your mission: defeat the final boss and save the princess." << "\n";
-        cout << "\n";
-        Sleep(2500);
-        cout << "A villager offers to join your quest." << "\n";
-        cout << "\n";
-        if(mode == 1){
-            cout << "He sees you as a chill guy, so he decides to become your good friend." << "\n";
+        mt19937 rng(static_cast<unsigned int>(time(0))); // Mersenne Twister 隨機數生成器
+        uniform_int_distribution<int> dist(1, 3); // 生成範圍 [1, 3] 的隨機數
+
+        int coin =0;
+        int runAway = 0;
+        int randomNumber = dist(rng);
+        string choice; // 宣告 choice 變數
+        if(randomNumber == 1){
+            team.addCharacter(new YOU("YOU", 1, 4, 3, 2, 4, 2));
+            cout << "Now you have been transported to an ancient world filled with monsters." <<"\n";
             cout << "\n";
             Sleep(2500);
-        }
-        else{
+            cout << "Since you are an ordinary person. " << "\n";
+            cout << "\n";
+            Sleep(2500);
+            cout << "You have no skills, no elemental affinity." << "\n";
+            cout << "\n";
+            Sleep(2500);
+            cout << "And all your skill points start from scratch." << "\n";
+            cout << "\n";
+            Sleep(2500);
+            cout << "You must defeat the boss of this world to regain your life." << "\n";
+            cout << "\n";
+            Sleep(2500);
+            cout << "Then you met someone on the road." << "\n";
+            cout << "\n";
+            Sleep(2500);
+
+            if(mode == 1){
+                cout << "He sees you as a chill guy, so he decides to become your good friend." << "\n";
+                cout << "\n";
+                Sleep(2500);
+            }
+            else{
             cout << "Who said they also wanted to defeat the boss." << "\n";
             cout << "\n";
             randomCharacter(team);
             Sleep(2500);
-        }
+            }
 
-        // 第一次小怪遭遇
-        cout << "You encounter a wild pixelated slime on the plains." << "\n";
-        cout << "\n";
-        Sleep(2500);
-        cout << "Choose whether to fight. Y/N " << "\n";
-        string choice;
-        cin >> choice;
-        cout << "\n";
-        Sleep(2500);
-        if(choice == "Y"){
-            Monster slime(300, 5);
-            cout << "Pixelated Slime appeared!" << "\n";
+            cout << "After that, you became good friends with them." << "\n";
+            cout << "\n";
+            Sleep(2500);
+            cout << "And went on adventures together." << "\n";
+            cout << "\n";
+            Sleep(2500);
+            cout << "Until you encountered the boss's first subordinate." << "\n";
+            cout << "\n";
+            Sleep(2500);
+   
+            while (true) {
+                cout << "Do you want to engage in battle? (Y/N): ";
+                cin >> choice;
+
+                // 將輸入轉為大寫以處理大小寫不敏感
+                transform(choice.begin(), choice.end(), choice.begin(), ::toupper);
+
+                if (choice == "Y" || choice == "N") {
+                    break; // 有效輸入，退出循環
+                } else {
+                    cout << "Invalid input. Please enter 'Y' or 'N'." << "\n";
+                }
+            }
+            if(choice == "Y"){
+                Monster monster(500, 15);
+                cout << "Monster appeared!" << "\n";
+                cout << "\n";
+                Sleep(2500);
+                cout << "The battle begins!" << "\n";
+                cout << "\n";
+                Sleep(2500);
+                team.combat(monster);
+                break;
+            }
+            else{
+                runAway++;
+                break;
+            }
+            cout << "After that, you traveled together to a ruins." << "\n";
+            cout << "\n";
+            Sleep(2500);
+            cout << "Where you met a young man who had been living ther." << "\n";
+            cout << "\n";
+            Sleep(2500);
+            cout << "And resisting the boss's subordinates for many years." << "\n";
+            cout << "\n";
+            Sleep(2500);
+            cout << "He said he would help you defeat the boss." << "\n";
+            cout << "\n";
+            Sleep(2500);
+            randomCharacter(team);
+            cout << "And so, we headed towards the castle of the second subordinate." << "\n";
+            cout << "\n";
+            Sleep(2500);
+            cout << "Until we encountered him..." << "\n";
+            cout << "\n";
+            Sleep(2500);
+
+            while (true) {
+                cout << "Do you want to engage in battle? (Y/N): ";
+                cin >> choice;
+
+                // 將輸入轉為大寫以處理大小寫不敏感
+                transform(choice.begin(), choice.end(), choice.begin(), ::toupper);
+
+                if (choice == "Y" || "N") {
+                    break; // 有效輸入，退出循環
+                } else {
+                    cout << "Invalid input. Please enter 'Y' or 'N'." << "\n";
+                }
+            }        
+
+            if(choice == "Y"){
+                Monster monster(1000, 30);
+                cout << "Monster appeared!" << "\n";
+                cout << "\n";
+                Sleep(2500);
+                cout << "The battle begins!" << "\n";
+                cout << "\n";
+                Sleep(2500);
+                team.combat(monster);
+            }
+            else{
+                runAway++;
+            }
+
+            cout <<"After leaving the castle and going through days of travel." << "\n";
+            cout << "\n";
+            Sleep(2500);
+            cout << "You accumulated many connections. " << "\n";
+            cout << "\n";
+            Sleep(2500);
+            cout << "Among them was a like-minded friend." << "\n"; 
+            cout << "\n";
+            Sleep(2500);
+
+            if(mode == 1){
+                cout << "He sees you as a chill guy, so he decides to become your good friend." << "\n";
+                cout << "\n";
+                Sleep(2500);
+            }
+            else{
+            cout << "Who said they also wanted to defeat the boss." << "\n";
+            cout << "\n";
+            randomCharacter(team);
+            Sleep(2500);
+            }
+            cout << "Who also expressed a desire to protect world peace." << "\n";
+            cout << "\n";
+            Sleep(2500);
+            cout << "And so, we headed towards the castle of the third subordinate." << "\n";
+            cout << "\n";
+            Sleep(2500);
+
+            while (true) {
+                cout << "Do you want to engage in battle? (Y/N): ";
+                cin >> choice;
+
+                // 將輸入轉為大寫以處理大小寫不敏感
+                transform(choice.begin(), choice.end(), choice.begin(), ::toupper);
+
+                if (choice == "Y" || choice == "N") {
+                    break; // 有效輸入，退出循環
+                } else {
+                    cout << "Invalid input. Please enter 'Y' or 'N'." << "\n";
+                }
+            }
+
+            if(choice == "Y"){
+                Monster monster(3000, 10);
+                cout << "Monster appeared! " << "\n";
+                cout << "\n";
+                Sleep(2500);
+                cout << "The battle begins!" << "\n";
+                cout << "\n";
+                Sleep(2500);
+                team.combat(monster);
+            }
+            else{
+                runAway++;
+            }
+
+            cout << "Later, you saw the hero trapped in a cage." << "\n";
+            cout << "\n";
+            Sleep(2500);
+            cout << "You rescued him, and in gratitude." << "\n"; 
+            cout << "\n";
+            Sleep(2500);
+            if(mode == 1){
+                cout << "He sees you as a chill guy, so he decides to become your good friend." << "\n";
+                cout << "\n";
+                Sleep(2500);
+            }
+            else{
+            cout << "Who said they also wanted to defeat the boss." << "\n";
+            cout << "\n";
+            randomCharacter(team);
+            Sleep(2500);
+            }
+            cout << "But we need to buy some support" << "\n";
+            cout << "\n";
+            Sleep(2500);
+            store(team); // 添加商店調用
+            cout << "After buying supplies." << "\n";
+            cout << "\n";
+            Sleep(2500);
+            cout << "We set off for the Demon King's castle." << "\n";
+            cout << "\n";
+            Sleep(2500);
+            cout << "And finally encountered the Demon King." << "\n";
+            cout << "\n";
+            Sleep(2500);
+            cout << "The Demon King said." << "\n";
+            cout << "\n";
+            Sleep(2500);
+            cout << "Since you were able to defeat my subordinates, come and face me!" << "\n";
+            cout << "\n";
+            Sleep(2500);
+
+            Monster monster(5000, 25);
+            cout << "Final boss appeared! " << "\n";
             cout << "\n";
             Sleep(2500);
             cout << "The battle begins!" << "\n";
             cout << "\n";
             Sleep(2500);
-            team.combat(slime);
-        } else {
-            runAway++;
-        }
-
-        // 第二次小怪遭遇
-        cout << "While crossing a forest, a group of rogue goblins ambushes you." << "\n";
-        cout << "\n";
-        Sleep(2500);
-        cout << "At that moment, a hunter lying in ambush nearby appeared." << "\n";
-        cout << "\n";
-        Sleep(2500);
-        if(mode == 1){
-            cout << "He sees you as a chill guy, so he decides to become your good friend." << "\n";
+            team.combat(monster);
+            cout << "After that, you defeated the boss." << "\n";
             cout << "\n";
             Sleep(2500);
+            cout << "And a portal appeared before you." << "\n";
+            cout << "\n";
+            Sleep(2500);
+            cout << "You touched it, only to realize that it was all just a dream. :D" << "\n";
         }
-        else{
-            cout << "Who said they also wanted to defeat the boss." << "\n";
+
+        if(randomNumber == 2){
+            team.addCharacter(new YOU("YOU", 1, 4, 3, 2, 4, 2));
+            cout << "Now you have been transported to a neon-lit cyberpunk world filled with rogue AI and cyborgs." << "\n";
+            cout << "\n";
+            Sleep(2500);
+            cout << "You are just an average hacker with limited skills." << "\n";
+            cout << "\n";
+            Sleep(2500);
+            cout << "Your goal: stop the rogue AI threatening the city." << "\n";
+            cout << "\n";
+            Sleep(2500);
+            cout << "Along the way, you meet a skilled cyborg who offers to assist you." << "\n";
+            cout << "\n";
+
+            if(mode == 1){
+                cout << "He sees you as a chill guy, so he decides to become your good friend." << "\n";
+                cout << "\n";
+                Sleep(2500);
+            }
+            else{
+            cout << "Who said they also wanted to defeat the rogue AI." << "\n";
             cout << "\n";
             randomCharacter(team);
             Sleep(2500);
-        }
+            }
 
-        cout << "Choose whether to fight. Y/N " << "\n";
-        cin >> choice;
-        cout << "\n";
-        Sleep(2500);
-        if(choice == "Y"){
-            Monster goblins(800, 10);
-            cout << "Rogue Goblins appeared!" << "\n";
+            // 第一次小怪遭遇
+            cout << "While exploring the city, you encounter a low-level rogue drone." << "\n";
+            cout << "\n";
+            Sleep(2500);
+
+            while (true) {
+                cout << "Do you want to engage in battle? (Y/N): ";
+                cin >> choice;
+
+                // 將輸入轉為大寫以處理大小寫不敏感
+                transform(choice.begin(), choice.end(), choice.begin(), ::toupper);
+
+                if (choice == "Y" || choice == "N") {
+                    break; // 有效輸入，退出循環
+                } else {
+                    cout << "Invalid input. Please enter 'Y' or 'N'." << "\n";
+                }
+            }
+
+            if(choice == "Y"){
+                Monster drone(700, 15);
+                cout << "Rogue Drone appeared!" << "\n";
+                cout << "\n";
+                Sleep(2500);
+                cout << "The battle begins!" << "\n";
+                cout << "\n";
+                Sleep(2500);
+                team.combat(drone);
+            } else {
+                runAway++;
+            }
+
+            // 第二次小怪遭遇
+            cout << "After you defeated him, you obtained a support robot." << "\n";
+            cout << "\n";
+            Sleep(2500);
+            if(mode == 1){
+                cout << "He sees you as a chill guy, so he decides to become your good friend." << "\n";
+                cout << "\n";
+                Sleep(2500);
+            }
+            else{
+            cout << "Who said they also wanted to defeat the rogue AI." << "\n";
+            cout << "\n";
+            randomCharacter(team);
+            Sleep(2500);
+            }
+            
+            cout << "As you progress, a mid-level security bot intercepts you." << "\n";
+            cout << "\n";
+            Sleep(2500);
+
+            while (true) {
+                cout << "Do you want to engage in battle? (Y/N): ";
+                cin >> choice;
+
+                // 將輸入轉為大寫以處理大小寫不敏感
+                transform(choice.begin(), choice.end(), choice.begin(), ::toupper);
+
+                if (choice == "Y" || choice == "N") {
+                    break; // 有效輸入，退出循環
+                } else {
+                    cout << "Invalid input. Please enter 'Y' or 'N'." << "\n";
+                }
+            }
+
+            if(choice == "Y"){
+                Monster securityBot(1500, 20);
+                cout << "Security Bot appeared!" << "\n";
+                cout << "\n";
+                Sleep(2500);
+                cout << "The battle begins!" << "\n";
+                cout << "\n";
+                Sleep(2500);
+                team.combat(securityBot);
+            } else {
+                runAway++;
+            }
+
+            // 第三次小怪遭遇
+            cout << "Near the AI's mainframe, you encounter an elite cyborg assassin." << "\n";
+            cout << "\n";
+            Sleep(2500);
+            cout << "At this moment, you notice someone wandering nearby." << "\n";
+            cout << "\n";
+            Sleep(2500);
+            cout << "You go over to take a look and realize it s a person." << "\n";
+            cout << "\n";
+            Sleep(2500);
+            if(mode == 1){
+                cout << "He sees you as a chill guy, so he decides to become your good friend." << "\n";
+                cout << "\n";
+                Sleep(2500);
+            }
+            else{
+            cout << "Who said they also wanted to defeat the rogue AI." << "\n";
+            cout << "\n";
+            randomCharacter(team);
+            Sleep(2500);
+            }
+
+            while (true) {
+                cout << "Do you want to engage in battle? (Y/N): ";
+                cin >> choice;
+
+                // 將輸入轉為大寫以處理大小寫不敏感
+                transform(choice.begin(), choice.end(), choice.begin(), ::toupper);
+
+                if (choice == "Y" || choice == "N") {
+                    break; // 有效輸入，退出循環
+                } else {
+                    cout << "Invalid input. Please enter 'Y' or 'N'." << "\n";
+                }
+            }
+
+            if(choice == "Y"){
+                Monster assassin(3000, 25);
+                cout << "Cyborg Assassin appeared!" << "\n";
+                cout << "\n";
+                Sleep(2500);
+                cout << "The battle begins!" << "\n";
+                cout << "\n";
+                Sleep(2500);
+                team.combat(assassin);
+            } else {
+                runAway++;
+            }
+
+            // 商店購買
+            cout << "After the battles, you find a black-market shop selling weapons and programs." << "\n";
+            cout << "\n";
+            Sleep(2500);
+            store(team);
+
+            // BOSS戰
+            cout << "Fully equipped, you infiltrate the AI's core system and encounter the rogue AI itself." << "\n";
+            cout << "\n";
+            Sleep(2500);
+            cout << "The AI generates a massive combat mech to stop you." << "\n";
+            cout << "\n";
+            Sleep(2500);
+
+            if(runAway == 3){
+                cout << "At this moment, the GOD couldn't stand it anymore." << "\n"; 
+                cout << "\n";
+                Sleep(2500);
+                cout << "so they decided to summon a mysterious person to help you. " << "\n";
+                cout << "\n";
+                Sleep(2500);
+
+                while (true) {
+                    cout << "(Y/N)?: ";
+                    cin >> choice;
+
+                    // 將輸入轉為大寫以處理大小寫不敏感
+                    transform(choice.begin(), choice.end(), choice.begin(), ::toupper);
+
+                    if (choice == "Y" || choice == "N") {
+                        break; // 有效輸入，退出循環
+                    } else {
+                        cout << "Invalid input. Please enter 'Y' or 'N'." << "\n";
+                    }
+                }
+
+                if(choice == "Y"){
+                    team.addCharacter(new teacher("THE C++ PRPROGRAMING TEACHER", 100000000, 4, 3, 2, 4, 2));
+                }
+            }
+            Monster boss(5500, 40);
+            cout << "Final Boss Mech appeared!" << "\n";
             cout << "\n";
             Sleep(2500);
             cout << "The battle begins!" << "\n";
             cout << "\n";
             Sleep(2500);
-            team.combat(goblins);
-        } else {
-            runAway++;
-        }
+            team.combat(boss);
 
-        // 第三次小怪遭遇
-        cout << "After emerging from the jungle." << "\n";
-        cout << "\n";
-        Sleep(2500);
-        cout << "You prepare to set off for the dungeon." << "\n";
-        cout << "\n";
-        Sleep(2500);
-        cout << "Along the way, you encounter an adventurer looking to explore treasure." << "\n";
-        cout << "\n";
-        Sleep(2500);
-        if(mode == 1){
-            cout << "He sees you as a chill guy, so he decides to become your good friend." << "\n";
+            cout << "You successfully shut down the rogue AI and save the city." << "\n";
             cout << "\n";
             Sleep(2500);
-        }
-        else{
-            cout << "Who said they also wanted to defeat the boss." << "\n";
-            cout << "\n";
-            randomCharacter(team);
-            Sleep(2500);
+            cout << "But you wake up to realize it was a VR simulation! :D" << "\n";
         }
 
-        cout << "Inside a dungeon, a skeletal knight guards the treasure." << "\n";
-        cout << "\n";
-        Sleep(2500);
-        cout << "Choose whether to fight. Y/N " << "\n";
-        cin >> choice;
-        cout << "\n";
-        Sleep(2500);
-        if(choice == "Y"){
-            Monster knight(1500, 20);
-            cout << "Skeletal Knight appeared!" << "\n";
+        if(randomNumber == 3){
+            team.addCharacter(new YOU("YOU", 1, 4, 3, 2, 4, 2));
+            cout << "Now you have been transported to a pixelated 2D world filled with monsters and treasures." << "\n";
+            cout << "\n";
+            Sleep(2500);
+            cout << "As a simple character, your journey begins with basic tools." << "\n";            
+            cout << "\n";
+            Sleep(2500);
+            cout << "Your mission: defeat the final boss and save the princess." << "\n";
+            cout << "\n";
+            Sleep(2500);
+            cout << "A villager offers to join your quest." << "\n";
+            cout << "\n";
+            if(mode == 1){
+                cout << "He sees you as a chill guy, so he decides to become your good friend." << "\n";
+                cout << "\n";
+                Sleep(2500);
+            }
+            else{
+                cout << "Who said they also wanted to defeat the boss." << "\n";
+                cout << "\n";
+                randomCharacter(team);
+                Sleep(2500);
+            }
+
+            // 第一次小怪遭遇
+            cout << "You encounter a wild pixelated slime on the plains." << "\n";
+            cout << "\n";
+            Sleep(2500);
+
+            while (true) {
+                cout << "Do you want to engage in battle? (Y/N): ";
+                cin >> choice;
+
+                // 將輸入轉為大寫以處理大小寫不敏感
+                transform(choice.begin(), choice.end(), choice.begin(), ::toupper);
+
+                if (choice == "Y" || choice == "N") {
+                    break; // 有效輸入，退出循環
+                } else {
+                    cout << "Invalid input. Please enter 'Y' or 'N'." << "\n";
+                }
+            }
+
+            if(choice == "Y"){
+                Monster slime(600, 10);
+                cout << "Pixelated Slime appeared!" << "\n";
+                cout << "\n";
+                Sleep(2500);
+                cout << "The battle begins!" << "\n";
+                cout << "\n";
+                Sleep(2500);
+                team.combat(slime);
+            } else {
+                runAway++;
+            }
+
+            // 第二次小怪遭遇
+            cout << "While crossing a forest, a group of rogue goblins ambushes you." << "\n";
+            cout << "\n";
+            Sleep(2500);
+            cout << "At that moment, a hunter lying in ambush nearby appeared." << "\n";
+            cout << "\n";
+            Sleep(2500);
+            if(mode == 1){
+                cout << "He sees you as a chill guy, so he decides to become your good friend." << "\n";
+                cout << "\n";
+                Sleep(2500);
+            }
+            else{
+                cout << "Who said they also wanted to defeat the boss." << "\n";
+                cout << "\n";
+                randomCharacter(team);
+                Sleep(2500);
+            }
+
+            while (true) {
+                cout << "Do you want to engage in battle? (Y/N): ";
+                cin >> choice;
+
+                // 將輸入轉為大寫以處理大小寫不敏感
+                transform(choice.begin(), choice.end(), choice.begin(), ::toupper);
+
+                if (choice == "Y" || choice == "N") {
+                    break; // 有效輸入，退出循環
+                } else {
+                    cout << "Invalid input. Please enter 'Y' or 'N'." << "\n";
+                }
+            }
+
+            if(choice == "Y"){
+                Monster goblins(1000, 15);
+                cout << "Rogue Goblins appeared!" << "\n";
+                cout << "\n";
+                Sleep(2500);
+                cout << "The battle begins!" << "\n";
+                cout << "\n";
+                Sleep(2500);
+                team.combat(goblins);
+            } else {
+                runAway++;
+            }
+
+            // 第三次小怪遭遇
+            cout << "After emerging from the jungle." << "\n";
+            cout << "\n";
+            Sleep(2500);
+            cout << "You prepare to set off for the dungeon." << "\n";
+            cout << "\n";
+            Sleep(2500);
+            cout << "Along the way, you encounter an adventurer looking to explore treasure." << "\n";
+            cout << "\n";
+            Sleep(2500);
+            if(mode == 1){
+                cout << "He sees you as a chill guy, so he decides to become your good friend." << "\n";
+                cout << "\n";
+                Sleep(2500);
+            }
+            else{
+                cout << "Who said they also wanted to defeat the boss." << "\n";
+                cout << "\n";
+                randomCharacter(team);
+                Sleep(2500);
+            }
+
+            cout << "Inside a dungeon, a skeletal knight guards the treasure." << "\n";
+            cout << "\n";
+            Sleep(2500);
+
+            while (true) {
+                cout << "Do you want to engage in battle? (Y/N): ";
+                cin >> choice;
+
+                // 將輸入轉為大寫以處理大小寫不敏感
+                transform(choice.begin(), choice.end(), choice.begin(), ::toupper);
+
+                if (choice == "Y" || choice == "N") {
+                    break; // 有效輸入，退出循環
+                } else {
+                    cout << "Invalid input. Please enter 'Y' or 'N'." << "\n";
+                }
+            }
+
+            if(choice == "Y"){
+                Monster knight(2800, 24);
+                cout << "Skeletal Knight appeared!" << "\n";
+                cout << "\n";
+                Sleep(2500);
+                cout << "The battle begins!" << "\n";
+                cout << "\n";
+                Sleep(2500);
+                team.combat(knight);
+            } else {
+                runAway++;
+            }
+
+            // 商店購買
+            cout << "After surviving the dungeon, you arrive at a small village with a shop." << "\n";
+             cout << "\n";
+            Sleep(2500);
+            store(team);
+
+            // BOSS戰
+            cout << "With your new equipment, you reach the pixelated castle and confront the Demon King." << "\n";
+            cout << "\n";
+            Sleep(2500);
+            Monster boss(5000, 30);
+            cout << "Final Boss: Demon King appeared!" << "\n";
             cout << "\n";
             Sleep(2500);
             cout << "The battle begins!" << "\n";
             cout << "\n";
             Sleep(2500);
-            team.combat(knight);
-        } else {
-            runAway++;
+            team.combat(boss);
+            cout << "You defeat the Demon King and rescue the princess." << "\n";
+            cout << "\n";
+            Sleep(2500);
+            cout << "As the world starts to glitch, you wake up in front of an old arcade machine. :D" << "\n";
         }
-
-        // 商店購買
-        cout << "After surviving the dungeon, you arrive at a small village with a shop." << "\n";
-         cout << "\n";
-        Sleep(2500);
-        store(team);
-
-        // BOSS戰
-        cout << "With your new equipment, you reach the pixelated castle and confront the Demon King." << "\n";
-        cout << "\n";
-        Sleep(2500);
-        Monster boss(5000, 30);
-        cout << "Final Boss: Demon King appeared!" << "\n";
-        cout << "\n";
-        Sleep(2500);
-        cout << "The battle begins!" << "\n";
-        cout << "\n";
-        Sleep(2500);
-        team.combat(boss);
-        cout << "You defeat the Demon King and rescue the princess." << "\n";
-        cout << "\n";
-        Sleep(2500);
-        cout << "As the world starts to glitch, you wake up in front of an old arcade machine. :D" << "\n";
+        cout << "press 1 to play again or not 1 to close the game: " << "\n";
+        int playAgain;
+        cin >> playAgain;
+        if (playAgain != 1) {
+            break;
+        }
     }
     return 0;
 }
