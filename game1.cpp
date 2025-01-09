@@ -5,9 +5,9 @@
 #include <ctime>
 #include <string>
 #include <cmath>
-#include <iomanip>
-#include <unordered_map>
-#include <windows.h>
+#include <iomanip> // 用於設置輸出精度
+#include <unordered_map> // 用於存儲狀態效果
+#include <windows.h> // 用於 Sleep() 函數
 using namespace std;
 
 // 初始化隨機數生成器
@@ -55,7 +55,8 @@ public:
         }
     }
 
-    void applyStatusEffect(string effect, int duration) { statusEffects[effect] = duration; }
+    void applyStatusEffect(string effect, int duration) { statusEffects[effect] = duration; } // 應用狀態效果
+    // 減少狀態效果持續時間
     void decrementStatusEffects() {
         for (auto it = statusEffects.begin(); it != statusEffects.end();) {
             it->second -= 1;
@@ -125,7 +126,7 @@ public:
         cout <<"\n";
     }
     
-    virtual void useSkill(Monster& monster) = 0;
+    virtual void useSkill(Monster& monster) = 0; // 技能接口
     virtual void useElementSkill(Character& target) = 0; // 元素技能接口
     virtual void useElementSkill(Monster& target) {
         cout << "Elemental skill used on monster!\n";
@@ -140,8 +141,8 @@ public:
 
         if (damage > 0 && isDefending) {
             if (armor > 0) {
-                int reducedDamage = damage / 2; // 防禦減少一半傷害
-                int armorCost = damage * 0.2;    // 防禦消耗護甲值（假設 1/3 比例）
+                int reducedDamage = damage * 0.8; // 防禦減少兩成傷害
+                int armorCost = damage * 0.2;    // 防禦消耗護甲值
                 armor = max(0, armor - armorCost);
 
                 cout << name << " blocked part of the damage, reducing it to " << reducedDamage 
@@ -161,12 +162,13 @@ public:
     int getArmor() const { return armor; }
     void setArmor(int newArmor) { armor = max(0, newArmor); }
     int getAttack() const { return attackPower; }
-    int getSkillCost() const { return skillCost; }
-    int getElementSkillCost() const { return elementSkillCost; }
+    int getSkillCost() const { return skillCost; } // 獲取技能消耗 MP
+    int getElementSkillCost() const { return elementSkillCost; } // 獲取元素技能消耗 MP
     string getName() const { return name; }
-    Element getElement() const { return element; }
-    void setElement(Element newElement) { element = newElement; }
-    void applyStatusEffect(string effect, int duration) { statusEffects[effect] = duration; }
+    Element getElement() const { return element; } // 獲取元素屬性
+    void setElement(Element newElement) { element = newElement; } // 設置元素屬性
+    void applyStatusEffect(string effect, int duration) { statusEffects[effect] = duration; } // 應用狀態效果
+    // 減少狀態效果持續時間
     void decrementStatusEffects() {
         for (auto it = statusEffects.begin(); it != statusEffects.end();) {
             it->second -= 1;
