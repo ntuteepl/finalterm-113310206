@@ -1215,7 +1215,7 @@ int main() {
 
         int coin =0;
         int runAway = 0;
-        int randomNumber = 1;
+        int randomNumber = dist(rng); // 生成隨機數
         string choice; // 宣告 choice 變數
         if(randomNumber == 1){
             team.addCharacter(new YOU("YOU", 1, 4, 3, 2, 4, 2));
