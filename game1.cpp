@@ -9,6 +9,7 @@
 #include <unordered_map> // 用於存儲狀態效果
 #include <windows.h> // 用於 Sleep() 函數
 using namespace std;
+//如果無法編譯 可能是環境參數跑掉了 請重新設定環境參數
 
 // 初始化隨機數生成器
 default_random_engine generator(time(0));
@@ -309,14 +310,14 @@ public:
     void use(Character& user, Monster& target) {
         if (user.getMP() >= cost) {
             user.setMP(user.getMP() - cost);
-            target.setElement(element); // 附加屬性效果
-            cout << user.getName() << " used " << name << "! The monster is now affected by " << user.getElementName() << " element for 2 turns.\n";
-            cout <<"\n";
+            target.setElement(element); // 覆蓋敵人的元素
+            cout << user.getName() << " used " << name << "! The monster's element is now " << getElementName() << ".\n";
+            cout << "\n";
             cout << "MP remaining: " << user.getMP() << "/" << user.getMaxMP() << "\n";
-            cout <<"\n";
+            cout << "\n";
         } else {
             cout << user.getName() << " does not have enough MP to use " << name << "!\n";
-            cout <<"\n";
+            cout << "\n";
         }
     }
 
@@ -340,6 +341,15 @@ public:
             cout << "\n";
         } else {
             cout << user.getName() << " does not have enough MP to use " << name << "!\n";
+        }
+    }
+
+    string getElementName() const {
+        switch (element) {
+            case WATER: return "Water";
+            case FIRE: return "Fire";
+            case WOOD: return "Wood";
+            default: return "None";
         }
     }
 };
@@ -628,11 +638,23 @@ public:
     }
 
     void useElementSkill(Monster& target) override {
-        elementSkill.use(*this, target);
+        if (element == NONE) {
+            cout << getName() << " does not have an elemental skill.\n";
+        } else {
+            elementSkill.use(*this, target);
+        }
     }
 
     void useElementSkill(Character& target) override {
-        elementSkill.use(*this, target);
+        if (element == NONE) {
+            cout << getName() << " does not have an elemental skill.\n";
+        } else {
+            elementSkill.use(*this, target);
+        }
+    }
+
+    void setElementSkill(ElementSkill newElementSkill) {
+        elementSkill = newElementSkill;
     }
 };
 
@@ -1103,6 +1125,7 @@ void store(Team& team) {
                 if (team.getCoin() >= 200) {
                     setYOUElement(team, WOOD);
                     team.spendCoin(200);
+                    dynamic_cast<YOU*>(member)->setElementSkill(ElementSkill("Wooden Guard", 20, 50, WOOD));
                 } else {
                     cout << "Not enough coins.\n";
                 }
@@ -1111,6 +1134,7 @@ void store(Team& team) {
                 if (team.getCoin() >= 200) {
                     setYOUElement(team, FIRE);
                     team.spendCoin(200);
+                    dynamic_cast<YOU*>(member)->setElementSkill(ElementSkill("Flame Slash", 20, 50, FIRE));
                 } else {
                     cout << "Not enough coins.\n";
                 }
@@ -1119,6 +1143,7 @@ void store(Team& team) {
                 if (team.getCoin() >= 200) {
                     setYOUElement(team, WATER);
                     team.spendCoin(200);
+                    dynamic_cast<YOU*>(member)->setElementSkill(ElementSkill("Water Blast", 20, 50, WATER));
                 } else {
                     cout << "Not enough coins.\n";
                 }
@@ -1128,6 +1153,19 @@ void store(Team& team) {
                 break;
         }
         cout << "\n";
+    }
+}
+
+int getValidChoice() {
+    string choice;
+    while (true) {
+        cin >> choice;
+        transform(choice.begin(), choice.end(), choice.begin(), ::toupper);
+        if (choice == "Y" || choice == "N") {
+            return choice == "Y" ? 1 : 0;
+        } else {
+            cout << "Invalid input. Please enter 'Y' or 'N'." << "\n";
+        }
     }
 }
 
@@ -1177,7 +1215,7 @@ int main() {
 
         int coin =0;
         int runAway = 0;
-        int randomNumber = dist(rng);
+        int randomNumber = 1;
         string choice; // 宣告 choice 變數
         if(randomNumber == 1){
             team.addCharacter(new YOU("YOU", 1, 4, 3, 2, 4, 2));
@@ -1206,10 +1244,10 @@ int main() {
                 Sleep(2500);
             }
             else{
-            cout << "Who said they also wanted to defeat the boss." << "\n";
-            cout << "\n";
-            randomCharacter(team);
-            Sleep(2500);
+                cout << "Who said they also wanted to defeat the boss." << "\n";
+                cout << "\n";
+                randomCharacter(team);
+                Sleep(2500);
             }
 
             cout << "After that, you became good friends with them." << "\n";
@@ -1222,20 +1260,8 @@ int main() {
             cout << "\n";
             Sleep(2500);
    
-            while (true) {
-                cout << "Do you want to engage in battle? (Y/N): ";
-                cin >> choice;
-
-                // 將輸入轉為大寫以處理大小寫不敏感
-                transform(choice.begin(), choice.end(), choice.begin(), ::toupper);
-
-                if (choice == "Y" || choice == "N") {
-                    break; // 有效輸入，退出循環
-                } else {
-                    cout << "Invalid input. Please enter 'Y' or 'N'." << "\n";
-                }
-            }
-            if(choice == "Y"){
+            cout << "Do you want to engage in battle? (Y/N): ";
+            if(getValidChoice()) {
                 Monster monster(500, 15);
                 cout << "Monster appeared!" << "\n";
                 cout << "\n";
@@ -1244,12 +1270,10 @@ int main() {
                 cout << "\n";
                 Sleep(2500);
                 team.combat(monster);
-                break;
-            }
-            else{
+            } else {
                 runAway++;
-                break;
             }
+
             cout << "After that, you traveled together to a ruins." << "\n";
             cout << "\n";
             Sleep(2500);
@@ -1262,7 +1286,19 @@ int main() {
             cout << "He said he would help you defeat the boss." << "\n";
             cout << "\n";
             Sleep(2500);
-            randomCharacter(team);
+            
+            if(mode == 1){
+                cout << "He sees you as a chill guy, so he decides to become your good friend." << "\n";
+                cout << "\n";
+                Sleep(2500);
+            }
+            else{
+                cout << "Who said they also wanted to defeat the boss." << "\n";
+                cout << "\n";
+                randomCharacter(team);
+                Sleep(2500);
+            }
+            
             cout << "And so, we headed towards the castle of the second subordinate." << "\n";
             cout << "\n";
             Sleep(2500);
@@ -1270,21 +1306,8 @@ int main() {
             cout << "\n";
             Sleep(2500);
 
-            while (true) {
-                cout << "Do you want to engage in battle? (Y/N): ";
-                cin >> choice;
-
-                // 將輸入轉為大寫以處理大小寫不敏感
-                transform(choice.begin(), choice.end(), choice.begin(), ::toupper);
-
-                if (choice == "Y" || "N") {
-                    break; // 有效輸入，退出循環
-                } else {
-                    cout << "Invalid input. Please enter 'Y' or 'N'." << "\n";
-                }
-            }        
-
-            if(choice == "Y"){
+            cout << "Do you want to engage in battle? (Y/N): ";
+            if(getValidChoice()) {
                 Monster monster(1000, 30);
                 cout << "Monster appeared!" << "\n";
                 cout << "\n";
@@ -1293,8 +1316,7 @@ int main() {
                 cout << "\n";
                 Sleep(2500);
                 team.combat(monster);
-            }
-            else{
+            } else {
                 runAway++;
             }
 
@@ -1314,10 +1336,10 @@ int main() {
                 Sleep(2500);
             }
             else{
-            cout << "Who said they also wanted to defeat the boss." << "\n";
-            cout << "\n";
-            randomCharacter(team);
-            Sleep(2500);
+                cout << "Who said they also wanted to defeat the boss." << "\n";
+                cout << "\n";
+                randomCharacter(team);
+                Sleep(2500);
             }
             cout << "Who also expressed a desire to protect world peace." << "\n";
             cout << "\n";
@@ -1326,21 +1348,8 @@ int main() {
             cout << "\n";
             Sleep(2500);
 
-            while (true) {
-                cout << "Do you want to engage in battle? (Y/N): ";
-                cin >> choice;
-
-                // 將輸入轉為大寫以處理大小寫不敏感
-                transform(choice.begin(), choice.end(), choice.begin(), ::toupper);
-
-                if (choice == "Y" || choice == "N") {
-                    break; // 有效輸入，退出循環
-                } else {
-                    cout << "Invalid input. Please enter 'Y' or 'N'." << "\n";
-                }
-            }
-
-            if(choice == "Y"){
+            cout << "Do you want to engage in battle? (Y/N): ";
+            if(getValidChoice()) {
                 Monster monster(3000, 10);
                 cout << "Monster appeared! " << "\n";
                 cout << "\n";
@@ -1349,8 +1358,7 @@ int main() {
                 cout << "\n";
                 Sleep(2500);
                 team.combat(monster);
-            }
-            else{
+            } else {
                 runAway++;
             }
 
@@ -1366,10 +1374,10 @@ int main() {
                 Sleep(2500);
             }
             else{
-            cout << "Who said they also wanted to defeat the boss." << "\n";
-            cout << "\n";
-            randomCharacter(team);
-            Sleep(2500);
+                cout << "Who said they also wanted to defeat the boss." << "\n";
+                cout << "\n";
+                randomCharacter(team);
+                Sleep(2500);
             }
             cout << "But we need to buy some support" << "\n";
             cout << "\n";
@@ -1439,21 +1447,8 @@ int main() {
             cout << "\n";
             Sleep(2500);
 
-            while (true) {
-                cout << "Do you want to engage in battle? (Y/N): ";
-                cin >> choice;
-
-                // 將輸入轉為大寫以處理大小寫不敏感
-                transform(choice.begin(), choice.end(), choice.begin(), ::toupper);
-
-                if (choice == "Y" || choice == "N") {
-                    break; // 有效輸入，退出循環
-                } else {
-                    cout << "Invalid input. Please enter 'Y' or 'N'." << "\n";
-                }
-            }
-
-            if(choice == "Y"){
+            cout << "Do you want to engage in battle? (Y/N): ";
+            if(getValidChoice()) {
                 Monster drone(700, 15);
                 cout << "Rogue Drone appeared!" << "\n";
                 cout << "\n";
@@ -1486,21 +1481,8 @@ int main() {
             cout << "\n";
             Sleep(2500);
 
-            while (true) {
-                cout << "Do you want to engage in battle? (Y/N): ";
-                cin >> choice;
-
-                // 將輸入轉為大寫以處理大小寫不敏感
-                transform(choice.begin(), choice.end(), choice.begin(), ::toupper);
-
-                if (choice == "Y" || choice == "N") {
-                    break; // 有效輸入，退出循環
-                } else {
-                    cout << "Invalid input. Please enter 'Y' or 'N'." << "\n";
-                }
-            }
-
-            if(choice == "Y"){
+            cout << "Do you want to engage in battle? (Y/N): ";
+            if(getValidChoice()) {
                 Monster securityBot(1500, 20);
                 cout << "Security Bot appeared!" << "\n";
                 cout << "\n";
@@ -1535,21 +1517,8 @@ int main() {
             Sleep(2500);
             }
 
-            while (true) {
-                cout << "Do you want to engage in battle? (Y/N): ";
-                cin >> choice;
-
-                // 將輸入轉為大寫以處理大小寫不敏感
-                transform(choice.begin(), choice.end(), choice.begin(), ::toupper);
-
-                if (choice == "Y" || choice == "N") {
-                    break; // 有效輸入，退出循環
-                } else {
-                    cout << "Invalid input. Please enter 'Y' or 'N'." << "\n";
-                }
-            }
-
-            if(choice == "Y"){
+            cout << "Do you want to engage in battle? (Y/N): ";
+            if(getValidChoice()) {
                 Monster assassin(3000, 25);
                 cout << "Cyborg Assassin appeared!" << "\n";
                 cout << "\n";
@@ -1584,21 +1553,8 @@ int main() {
                 cout << "\n";
                 Sleep(2500);
 
-                while (true) {
-                    cout << "(Y/N)?: ";
-                    cin >> choice;
-
-                    // 將輸入轉為大寫以處理大小寫不敏感
-                    transform(choice.begin(), choice.end(), choice.begin(), ::toupper);
-
-                    if (choice == "Y" || choice == "N") {
-                        break; // 有效輸入，退出循環
-                    } else {
-                        cout << "Invalid input. Please enter 'Y' or 'N'." << "\n";
-                    }
-                }
-
-                if(choice == "Y"){
+                cout << "(Y/N)?: ";
+                if(getValidChoice()) {
                     team.addCharacter(new teacher("THE C++ PRPROGRAMING TEACHER", 100000000, 4, 3, 2, 4, 2));
                 }
             }
@@ -1647,21 +1603,8 @@ int main() {
             cout << "\n";
             Sleep(2500);
 
-            while (true) {
-                cout << "Do you want to engage in battle? (Y/N): ";
-                cin >> choice;
-
-                // 將輸入轉為大寫以處理大小寫不敏感
-                transform(choice.begin(), choice.end(), choice.begin(), ::toupper);
-
-                if (choice == "Y" || choice == "N") {
-                    break; // 有效輸入，退出循環
-                } else {
-                    cout << "Invalid input. Please enter 'Y' or 'N'." << "\n";
-                }
-            }
-
-            if(choice == "Y"){
+            cout << "Do you want to engage in battle? (Y/N): ";
+            if(getValidChoice()) {
                 Monster slime(600, 10);
                 cout << "Pixelated Slime appeared!" << "\n";
                 cout << "\n";
@@ -1693,21 +1636,8 @@ int main() {
                 Sleep(2500);
             }
 
-            while (true) {
-                cout << "Do you want to engage in battle? (Y/N): ";
-                cin >> choice;
-
-                // 將輸入轉為大寫以處理大小寫不敏感
-                transform(choice.begin(), choice.end(), choice.begin(), ::toupper);
-
-                if (choice == "Y" || choice == "N") {
-                    break; // 有效輸入，退出循環
-                } else {
-                    cout << "Invalid input. Please enter 'Y' or 'N'." << "\n";
-                }
-            }
-
-            if(choice == "Y"){
+            cout << "Do you want to engage in battle? (Y/N): ";
+            if(getValidChoice()) {
                 Monster goblins(1000, 15);
                 cout << "Rogue Goblins appeared!" << "\n";
                 cout << "\n";
@@ -1746,21 +1676,8 @@ int main() {
             cout << "\n";
             Sleep(2500);
 
-            while (true) {
-                cout << "Do you want to engage in battle? (Y/N): ";
-                cin >> choice;
-
-                // 將輸入轉為大寫以處理大小寫不敏感
-                transform(choice.begin(), choice.end(), choice.begin(), ::toupper);
-
-                if (choice == "Y" || choice == "N") {
-                    break; // 有效輸入，退出循環
-                } else {
-                    cout << "Invalid input. Please enter 'Y' or 'N'." << "\n";
-                }
-            }
-
-            if(choice == "Y"){
+            cout << "Do you want to engage in battle? (Y/N): ";
+            if(getValidChoice()) {
                 Monster knight(2800, 24);
                 cout << "Skeletal Knight appeared!" << "\n";
                 cout << "\n";
